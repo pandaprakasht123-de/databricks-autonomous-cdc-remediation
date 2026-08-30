@@ -1,0 +1,61 @@
+# Databricks Workspace Configuration for Lakehouse Healing CDC Pipeline
+# This file is for reference only - actual secrets should come from environment variables or Databricks Secrets
+
+workspace:
+  host: ${DATABRICKS_HOST}  # e.g., https://your-workspace.databricks.com
+  token: ${DATABRICKS_TOKEN}  # Use Databricks Personal Access Token
+  cluster_id: ${DATABRICKS_CLUSTER_ID}  # Cluster to run jobs
+
+# Unity Catalog Structure
+catalog:
+  name: lakehouse_healing
+  schemas:
+    bronze:
+      description: "Raw CDC data ingested via Auto Loader"
+      tables:
+        - name: customers_cdc_raw
+          format: delta
+          description: "Raw Debezium-style CDC events"
+    silver:
+      description: "Conformed CDC data with SCD2 history"
+      tables:
+        - name: customers
+          format: delta
+          description: "Customer dimension with SCD2 tracking (is_current, valid_from, valid_to)"
+        - name: quarantine
+          format: delta
+          description: "Malformed or schema-drifted records for AI healing"
+    gold:
+      description: "Curated analytics tables"
+      tables:
+        - name: dim_customers
+          format: delta
+          description: "Active customer dimension for analytics"
+    ops:
+      description: "Operational and audit tables"
+      tables:
+        - name: schema_remediation_audit
+          format: delta
+          description: "Log of schema drift incidents, AI diagnoses, and human decisions"
+
+# Volumes for CDC data pipeline
+volumes:
+  landing:
+    path: /Volumes/lakehouse_healing/ops/landing
+    description: "Landing zone for CDC JSON files"
+  checkpoints:
+    path: /Volumes/lakehouse_healing/ops/checkpoints
+    description: "Spark Structured Streaming checkpoints"
+
+# AI Healing Configuration
+ai_healing:
+  model_endpoint: databricks-llama-3-3-70b-instruct
+  confidence_threshold: 0.75  # Only apply DDL if confidence >= 75%
+  max_tokens: 2048
+
+# Processing Configuration
+processing:
+  batch_size: 1000
+  max_retries: 3
+  retry_delay_seconds: 300
+  timeout_minutes: 60
